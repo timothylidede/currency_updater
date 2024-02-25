@@ -31,9 +31,14 @@ jobs:
 
     - name: Set up ChromeDriver
       run: |
-        CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3 | cut -d '.' -f 1)
+        # Get the complete version string
+        CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3)
+        # Use only the major version part for fetching the ChromeDriver
+        CHROME_MAJOR_VERSION=$(echo $CHROME_VERSION | cut -d '.' -f 1)
         echo "Detected Chrome version: $CHROME_VERSION"
-        CHROMEDRIVER_URL="https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION"
+        echo "Chrome major version: $CHROME_MAJOR_VERSION"
+        # Construct the ChromeDriver URL using the major version
+        CHROMEDRIVER_URL="https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_MAJOR_VERSION"
         echo "ChromeDriver URL: $CHROMEDRIVER_URL"
         CHROMEDRIVER_VERSION=$(wget -qO- "$CHROMEDRIVER_URL")
         if [ -z "$CHROMEDRIVER_VERSION" ]; then
@@ -53,6 +58,7 @@ jobs:
         fi
         export PATH=$PATH:~/
         echo "ChromeDriver setup completed."
+
       shell: /usr/bin/bash -e {0}
       env:
         pythonLocation: /opt/hostedtoolcache/Python/3.8.18/x64
