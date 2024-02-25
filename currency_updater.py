@@ -5,6 +5,10 @@ from datetime import datetime
 import numpy as np
 import json
 import os
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+import time
 
 def col_num_to_letters(col_num):
     letters = ''
@@ -22,38 +26,36 @@ def setup_credentials_and_spreadsheet():
     spreadsheet = client.open("Copy of Currency Manipulation Feb 19")
     return client, spreadsheet
 
+# Set up the Selenium WebDriver options
+opts = Options()
+opts.add_argument("--headless")  # Optional: if you run this in a headless environment
+opts.add_argument("--no-sandbox")  # Optional: if running under a user with limited privileges
+opts.add_argument("--disable-dev-shm-usage")  # Optional: overcome limited resource problems
+# The path to chromedriver executable must be set in the environment or path
+driver = webdriver.Chrome(options=opts)
+driver.get('https://p2p.binance.com/en')
+
 def fetch_currency_data(currency_code, transaction_type):
     print(f"Fetching {transaction_type} data for currency: {currency_code}")
-    url = 'https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search'
-    payload = {
-        "page": 1,
-        "rows": 5,
-        "asset": "USDT",
-        "tradeType": transaction_type.upper(),
-        "fiat": currency_code,
-        "merchantCheck": False
-    }
-    headers = {'Content-Type': 'application/json'}
+    currency_button = driver.find_element(By.CSS_SELECTOR, "svg.css-1nlwvj5")
+    currency_button.click()
+    time.sleep(0.5)
+    currency_input = driver.find_element(By.CLASS_NAME, "css-jl5e70")
+    currency_input.send_keys(currency_code)
+    time.sleep(0.5)
+    li_element = driver.find_element(By.ID, currency_code)
+    li_element.click()
+    time.sleep(1)
+    transaction_button = driver.find_element(By.XPATH, f"//*[text()='{transaction_type.capitalize()}']")
+    transaction_button.click()
+    time.sleep(3)
+    div_elements = driver.find_elements(By.CLASS_NAME, "css-onyc9z")
+    extracted_data = [div.text for div in div_elements[:5]]
+    print(extracted_data)
+    data_floats = [float(i.replace(',', '')) for i in extracted_data if i.replace('.', '', 1).replace(',', '').isdigit()]
+    driver.quit()
+    return np.median(data_floats) if data_floats else None
     
-    response = requests.post(url, json=payload, headers=headers)
-
-    if response.status_code != 200:
-        print(f"Failed to fetch data: {response.status_code}")
-        print(response.text)  # This will show you the raw response text
-        return None
-    try:   
-        data = response.json()
-        if data and 'data' in data and len(data['data']) > 0:
-            prices = [float(adv['adv']['price']) for adv in data['data']]
-            print(f"Fetched data for {currency_code} - {transaction_type}: {prices}")
-            return np.median(prices)
-        else:
-            print("No data available or the response structure is unexpected.")
-            return None
-    except json.JSONDecodeError as e:
-        print(f"Failed to decode JSON: {e}")
-        print(f"Response text: {response.text}")  # This will help you understand why JSON decoding failed
-        return None
 
 def find_first_empty_column(worksheet):
     all_values = worksheet.get_all_values()
