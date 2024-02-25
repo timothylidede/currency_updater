@@ -32,12 +32,31 @@ jobs:
     - name: Set up ChromeDriver
       run: |
         CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3 | cut -d '.' -f 1)
-        echo "Detected Chrome version $CHROME_VERSION"
-        CHROMEDRIVER_VERSION=$(wget -qO- "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION")
-        echo "Matching ChromeDriver version $CHROMEDRIVER_VERSION"
-        wget -q "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
-        unzip chromedriver_linux64.zip -d ~/
+        echo "Detected Chrome version: $CHROME_VERSION"
+        CHROMEDRIVER_URL="https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION"
+        echo "ChromeDriver URL: $CHROMEDRIVER_URL"
+        CHROMEDRIVER_VERSION=$(wget -qO- "$CHROMEDRIVER_URL")
+        if [ -z "$CHROMEDRIVER_VERSION" ]; then
+          echo "Failed to fetch ChromeDriver version from URL: $CHROMEDRIVER_URL"
+          exit 1
+        fi
+        echo "Matching ChromeDriver version: $CHROMEDRIVER_VERSION"
+        wget -nv "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
+        if [ $? -ne 0 ]; then
+          echo "Failed to download ChromeDriver."
+          exit 1
+        fi
+        unzip -q chromedriver_linux64.zip -d ~/
+        if [ $? -ne 0 ]; then
+          echo "Failed to unzip ChromeDriver."
+          exit 1
+        fi
         export PATH=$PATH:~/
+        echo "ChromeDriver setup completed."
+      shell: /usr/bin/bash -e {0}
+      env:
+        pythonLocation: /opt/hostedtoolcache/Python/3.8.18/x64
+        LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
 
     - name: Run currency updater script
       env:
