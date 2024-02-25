@@ -12,45 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - name: Set up Python Selenium Action
+        uses: MarketingPipeline/Python-Selenium-Action@v1
         with:
-          python-version: '3.8'
-
-      - name: Install Python dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install selenium
-
-      - name: Install Google Chrome
-        run: |
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list'
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-
-      - name: Set up ChromeDriver
-        run: |
-          CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3)
-          CHROME_MAJOR_VERSION=$(echo $CHROME_VERSION | cut -d '.' -f 1)
-          echo "Detected Chrome version: $CHROME_VERSION"
-          echo "Chrome major version: $CHROME_MAJOR_VERSION"
-          CHROMEDRIVER_URL="https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_MAJOR_VERSION"
-          echo "ChromeDriver URL: $CHROMEDRIVER_URL"
-          CHROMEDRIVER_VERSION=$(wget -qO- "$CHROMEDRIVER_URL")
-          if [ -z "$CHROMEDRIVER_VERSION" ]; then
-            echo "Failed to fetch ChromeDriver version from URL: $CHROMEDRIVER_URL"
-            exit 1
-          fi
-          echo "Matching ChromeDriver version: $CHROMEDRIVER_VERSION"
-          wget -nv "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
-          unzip -q chromedriver_linux64.zip -d ~/
-          export PATH=$PATH:~/
-          echo "ChromeDriver setup completed."
-
-      - name: Run currency updater script
+          args: pip install -r requirements.txt && python currency_updater.py
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-        run: |
-          export PATH=$PATH:~/
-          python currency_updater.py
