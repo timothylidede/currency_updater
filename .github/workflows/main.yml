@@ -4,69 +4,53 @@ on:
   schedule:
     - cron: '0 0 * * *'  # Runs at 00:00 UTC every day
   workflow_dispatch:
-  
+
 jobs:
   update-currency:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
-    
-    - name: Install Python dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install selenium 
+      - uses: actions/checkout@v2
 
-    - name: Install Google Chrome
-      run: |
-        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-        sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
 
-    - name: Set up ChromeDriver
-      run: |
-        # Get the complete version string
-        CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3)
-        # Use only the major version part for fetching the ChromeDriver
-        CHROME_MAJOR_VERSION=$(echo $CHROME_VERSION | cut -d '.' -f 1)
-        echo "Detected Chrome version: $CHROME_VERSION"
-        echo "Chrome major version: $CHROME_MAJOR_VERSION"
-        # Construct the ChromeDriver URL using the major version
-        CHROMEDRIVER_URL="https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_MAJOR_VERSION"
-        echo "ChromeDriver URL: $CHROMEDRIVER_URL"
-        CHROMEDRIVER_VERSION=$(wget -qO- "$CHROMEDRIVER_URL")
-        if [ -z "$CHROMEDRIVER_VERSION" ]; then
-          echo "Failed to fetch ChromeDriver version from URL: $CHROMEDRIVER_URL"
-          exit 1
-        fi
-        echo "Matching ChromeDriver version: $CHROMEDRIVER_VERSION"
-        wget -nv "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
-        if [ $? -ne 0 ]; then
-          echo "Failed to download ChromeDriver."
-          exit 1
-        fi
-        unzip -q chromedriver_linux64.zip -d ~/
-        if [ $? -ne 0 ]; then
-          echo "Failed to unzip ChromeDriver."
-          exit 1
-        fi
-        export PATH=$PATH:~/
-        echo "ChromeDriver setup completed."
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install selenium
 
-      shell: /usr/bin/bash -e {0}
-      env:
-        pythonLocation: /opt/hostedtoolcache/Python/3.8.18/x64
-        LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
+      - name: Install Google Chrome
+        run: |
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
 
-    - name: Run currency updater script
-      env:
-        GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-      run: |
-        export PATH=$PATH:~/
-        python currency_updater.py
+      - name: Set up ChromeDriver
+        run: |
+          CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3)
+          CHROME_MAJOR_VERSION=$(echo $CHROME_VERSION | cut -d '.' -f 1)
+          echo "Detected Chrome version: $CHROME_VERSION"
+          echo "Chrome major version: $CHROME_MAJOR_VERSION"
+          CHROMEDRIVER_URL="https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_MAJOR_VERSION"
+          echo "ChromeDriver URL: $CHROMEDRIVER_URL"
+          CHROMEDRIVER_VERSION=$(wget -qO- "$CHROMEDRIVER_URL")
+          if [ -z "$CHROMEDRIVER_VERSION" ]; then
+            echo "Failed to fetch ChromeDriver version from URL: $CHROMEDRIVER_URL"
+            exit 1
+          fi
+          echo "Matching ChromeDriver version: $CHROMEDRIVER_VERSION"
+          wget -nv "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
+          unzip -q chromedriver_linux64.zip -d ~/
+          export PATH=$PATH:~/
+          echo "ChromeDriver setup completed."
+
+      - name: Run currency updater script
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          export PATH=$PATH:~/
+          python currency_updater.py
