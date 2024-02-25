@@ -1,0 +1,4 @@
+gspread==3.6.0
+requests==2.25.1
+numpy==1.19.5
+oauth2client==4.1.3
