@@ -36,13 +36,23 @@ def fetch_currency_data(currency_code, transaction_type):
     headers = {'Content-Type': 'application/json'}
     
     response = requests.post(url, json=payload, headers=headers)
-    data = response.json()
-    if data and 'data' in data and len(data['data']) > 0:
-        prices = [float(adv['adv']['price']) for adv in data['data']]
-        print(f"Fetched data for {currency_code} - {transaction_type}: {prices}")
-        return np.median(prices)
-    else:
-        print("No data available or the response structure is unexpected.")
+
+    if response.status_code != 200:
+        print(f"Failed to fetch data: {response.status_code}")
+        print(response.text)  # This will show you the raw response text
+        return None
+    try:   
+        data = response.json()
+        if data and 'data' in data and len(data['data']) > 0:
+            prices = [float(adv['adv']['price']) for adv in data['data']]
+            print(f"Fetched data for {currency_code} - {transaction_type}: {prices}")
+            return np.median(prices)
+        else:
+            print("No data available or the response structure is unexpected.")
+            return None
+    except json.JSONDecodeError as e:
+        print(f"Failed to decode JSON: {e}")
+        print(f"Response text: {response.text}")  # This will help you understand why JSON decoding failed
         return None
 
 def find_first_empty_column(worksheet):
