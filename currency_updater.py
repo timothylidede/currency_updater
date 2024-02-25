@@ -4,6 +4,7 @@ import requests
 from datetime import datetime
 import numpy as np
 import json
+import os
 
 def col_num_to_letters(col_num):
     letters = ''
