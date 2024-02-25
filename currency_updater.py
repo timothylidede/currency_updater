@@ -14,7 +14,8 @@ def col_num_to_letters(col_num):
 def setup_credentials_and_spreadsheet():
     print("Setting up credentials and spreadsheet...")
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', scope)
+    creds_json = json.loads(os.environ.get('GOOGLE_CREDENTIALS'))
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
     client = gspread.authorize(creds)
     spreadsheet = client.open("Copy of Currency Manipulation Feb 19")
     return client, spreadsheet
