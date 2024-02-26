@@ -9,6 +9,15 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
+import chromedriver_autoinstaller
+
+# Initialize headless display
+from pyvirtualdisplay import Display
+display = Display(visible=0, size=(800, 600))
+display.start()
+
+# Automatically install chromedriver
+chromedriver_autoinstaller.install()
 
 def col_num_to_letters(col_num):
     letters = ''
@@ -26,12 +35,13 @@ def setup_credentials_and_spreadsheet():
     spreadsheet = client.open("Copy of Currency Manipulation Feb 19")
     return client, spreadsheet
 
-# Set up the Selenium WebDriver options
+# Set up the Selenium WebDriver options for headless operation
 opts = Options()
-opts.add_argument("--headless")  # Optional: if you run this in a headless environment
-opts.add_argument("--no-sandbox")  # Optional: if running under a user with limited privileges
-opts.add_argument("--disable-dev-shm-usage")  # Optional: overcome limited resource problems
-# The path to chromedriver executable must be set in the environment or path
+opts.add_argument("--headless")
+opts.add_argument("--no-sandbox")
+opts.add_argument("--disable-dev-shm-usage")
+opts.add_argument("--window-size=1200,1200") 
+
 driver = webdriver.Chrome(options=opts)
 driver.get('https://p2p.binance.com/en')
 

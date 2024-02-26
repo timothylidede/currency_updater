@@ -8,13 +8,31 @@ on:
 jobs:
   update-currency:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v2
+      - name: Checking out repo
+        uses: actions/checkout@v3
 
-      - name: Set up Python Selenium Action
-        uses: MarketingPipeline/Python-Selenium-Action@v1
+      - name: Setting up Python
+        uses: actions/setup-python@v4
         with:
-          args: pip install -r requirements.txt && python currency_updater.py
+          python-version: '3.9'
+
+      - name: Installing all necessary packages
+        run: |
+          sudo apt-get update
+          sudo apt purge google-chrome-stable
+          pip install chromedriver-autoinstaller selenium pyvirtualdisplay gspread oauth2client numpy requests
+          sudo apt-get install -y xvfb
+
+      - name: Running the Python script
+        run: python currency_updater.py
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
+      - name: Commit and Push The Results From Python Selenium Action
+        run: |
+         git config --global user.name "github-actions[bot]"
+         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+         git add -A
+         git commit -m "GitHub Actions Results added"
+         git push
