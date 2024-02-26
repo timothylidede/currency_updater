@@ -1,102 +1,92 @@
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import requests
-from datetime import datetime
 import numpy as np
 import json
 import os
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-import time
 import chromedriver_autoinstaller
-
-# Initialize headless display
 from pyvirtualdisplay import Display
-display = Display(visible=0, size=(800, 600))
-display.start()
+import time
 
-# Automatically install chromedriver
-chromedriver_autoinstaller.install()
+def initialize_headless_display():
+    """Initialize headless display."""
+    display = Display(visible=0, size=(800, 600))
+    display.start()
 
-def col_num_to_letters(col_num):
-    letters = ''
-    while col_num > 0:
-        col_num, remainder = divmod(col_num - 1, 26)
-        letters = chr(65 + remainder) + letters
-    return letters
+def setup_chromedriver():
+    """Set up Chromedriver for Selenium."""
+    chromedriver_autoinstaller.install()
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--window-size=1200,1200")
+    return webdriver.Chrome(options=options)
 
 def setup_credentials_and_spreadsheet():
+    """Set up credentials and spreadsheet access."""
     print("Setting up credentials and spreadsheet...")
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds_json = json.loads(os.environ.get('GOOGLE_CREDENTIALS'))
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
     client = gspread.authorize(creds)
     spreadsheet = client.open("Copy of Currency Manipulation Feb 19")
-    return client, spreadsheet
+    return spreadsheet
 
-# Set up the Selenium WebDriver options for headless operation
-opts = Options()
-opts.add_argument("--headless")
-opts.add_argument("--no-sandbox")
-opts.add_argument("--disable-dev-shm-usage")
-opts.add_argument("--window-size=1200,1200") 
+def fetch_currency_data(driver, currency_code, transaction_type):
+    """Fetch currency data using Selenium."""
+    try:
+        print(f"Fetching {transaction_type} data for currency: {currency_code}")
+        driver.get('https://p2p.binance.com/en')
+        currency_button = driver.find_element(By.CSS_SELECTOR, "svg.css-1nlwvj5")
+        currency_button.click()
+        time.sleep(0.5)
+        currency_input = driver.find_element(By.CLASS_NAME, "css-jl5e70")
+        currency_input.send_keys(currency_code)
+        time.sleep(0.5)
+        li_element = driver.find_element(By.ID, currency_code)
+        li_element.click()
+        time.sleep(1)
+        transaction_button = driver.find_element(By.XPATH, f"//*[text()='{transaction_type.capitalize()}']")
+        transaction_button.click()
+        time.sleep(3)
+        div_elements = driver.find_elements(By.CLASS_NAME, "css-onyc9z")
+        extracted_data = [div.text for div in div_elements[:5]]
+        print(extracted_data)
+        data_floats = [float(i.replace(',', '')) for i in extracted_data if i.replace('.', '', 1).replace(',', '').isdigit()]
+        return np.median(data_floats) if data_floats else None
+    except Exception as e:
+        print(f"Error fetching data for {currency_code}: {e}")
+        return None
 
-driver = webdriver.Chrome(options=opts)
-driver.get('https://p2p.binance.com/en')
+def col_num_to_letters(col_num):
+    """Convert column number to spreadsheet letters."""
+    letters = ''
+    while col_num > 0:
+        col_num, remainder = divmod(col_num - 1, 26)
+        letters = chr(65 + remainder) + letters
+    return letters
 
-def fetch_currency_data(currency_code, transaction_type):
-    print(f"Fetching {transaction_type} data for currency: {currency_code}")
-    currency_button = driver.find_element(By.CSS_SELECTOR, "svg.css-1nlwvj5")
-    currency_button.click()
-    time.sleep(0.5)
-    currency_input = driver.find_element(By.CLASS_NAME, "css-jl5e70")
-    currency_input.send_keys(currency_code)
-    time.sleep(0.5)
-    li_element = driver.find_element(By.ID, currency_code)
-    li_element.click()
-    time.sleep(1)
-    transaction_button = driver.find_element(By.XPATH, f"//*[text()='{transaction_type.capitalize()}']")
-    transaction_button.click()
-    time.sleep(3)
-    div_elements = driver.find_elements(By.CLASS_NAME, "css-onyc9z")
-    extracted_data = [div.text for div in div_elements[:5]]
-    print(extracted_data)
-    data_floats = [float(i.replace(',', '')) for i in extracted_data if i.replace('.', '', 1).replace(',', '').isdigit()]
-    driver.quit()
-    return np.median(data_floats) if data_floats else None
-    
-
-def find_first_empty_column(worksheet):
-    all_values = worksheet.get_all_values()
-    if not all_values:
-        return 1
-    for col_index in range(1, len(all_values[0]) + 2):  # +2 to go beyond the last filled column
-        col_values = [row[col_index - 1] if col_index <= len(row) else '' for row in all_values]
-        if all(value.strip() == '' for value in col_values):
-            return col_index
-    return len(all_values[0]) + 1  # Next column if all are somehow filled
-
-def main():
-    client, spreadsheet = setup_credentials_and_spreadsheet()
-
-    currencies = ["ETB", "EGP", "MZN", "TZS", "NGN", "RWF", "ZAR", "ZMW", "GHS", "UGX", "KES"]
+def update_spreadsheet(spreadsheet, currencies, transaction_types):
+    """Update spreadsheet with fetched currency data."""
     today_date = datetime.now().strftime('%Y-%m-%d')
-
-    for sheet_name, transaction_type in [("BUY", "buy"), ("SELL", "sell")]:
+    driver = setup_chromedriver()
+    
+    for sheet_name, transaction_type in transaction_types:
         worksheet = spreadsheet.worksheet(sheet_name)
-        first_empty_col = find_first_empty_column(worksheet)
+        first_empty_col = find_first_empty_column(worksheet) + 1  # Adjust for 0-index
         col_letter = col_num_to_letters(first_empty_col)
-
-        # Update the date at the top of the first empty column
+        
         worksheet.update_cell(1, first_empty_col, today_date)
-
+        
         for currency in currencies:
             print(f"Processing {sheet_name} sheet for {currency}...")
-            median_price = fetch_currency_data(currency, transaction_type)
+            median_price = fetch_currency_data(driver, currency, transaction_type)
             
             if median_price is not None:
-                # Assuming currency codes are in the first column
                 try:
                     currency_cell = worksheet.find(currency)
                     worksheet.update_cell(currency_cell.row, first_empty_col, median_price)
@@ -106,17 +96,22 @@ def main():
             else:
                 print(f"No valid data to update for {currency}.")
     
+    driver.quit()
     print("Data retrieval and update process complete.")
+
+def find_first_empty_column(worksheet):
+    """Find the first empty column in a worksheet."""
+    all_values = worksheet.get_all_values()
+    if not all_values:
+        return 0
+    return next((i for i, column in enumerate(zip(*all_values)) if all(cell == '' for cell in column)), len(all_values[0]))
+
+def main():
+    initialize_headless_display()
+    spreadsheet = setup_credentials_and_spreadsheet()
+    currencies = ["ETB", "EGP", "MZN", "TZS", "NGN", "RWF", "ZAR", "ZMW", "GHS", "UGX", "KES"]
+    transaction_types = [("BUY", "buy"), ("SELL", "sell")]
+    update_spreadsheet(spreadsheet, currencies, transaction_types)
 
 if __name__ == "__main__":
     main()
-
-def scheduled_job(request):
-    """
-    This function is the entry point for Cloud Function.
-    It will be triggered by Cloud Scheduler.
-    """
-    main()  # Call your main function
-
-    # Must return a valid HTTP response
-    return "Completed", 200
