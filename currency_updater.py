@@ -41,6 +41,7 @@ def fetch_currency_data(driver, currency_code, transaction_type):
     try:
         print(f"Fetching {transaction_type} data for currency: {currency_code}")
         driver.get('https://p2p.binance.com/en')
+        time.sleep(2)
         currency_button = driver.find_element(By.CSS_SELECTOR, "svg.css-1nlwvj5")
         currency_button.click()
         time.sleep(0.5)
